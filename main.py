@@ -116,6 +116,7 @@ class MainWindow(QMainWindow):
         self.settings = load_settings()
 
         self.status = QLabel('No device connected')
+        self.status.setWordWrap(True)
         self.activate = QPushButton('Activate Device')
         self.activate.setEnabled(False)
 
@@ -170,12 +171,27 @@ class MainWindow(QMainWindow):
 
         try:
             supported = asyncio.run(exploit_cls.available(product, build, udid, **self.settings))
-        except Exception:
-            self._set_state('Could not reach backend. Please check your internet connection!', False)
+        except Exception as exc:
+            self._set_state(
+                f'Compatibility check failed for {product} iOS {version} (build {build}): '
+                f'{type(exc).__name__}: {exc}',
+                False,
+            )
             return
 
         if not supported:
-            self._set_state(exploit_cls.unavailable.format(product=product, version=version), False)
+            if exploit_cls.name == 'itunesstored':
+                self._set_state(
+                    f'No backend compatibility profile found for {product} iOS {version} '
+                    f'(build {build}). The iOS version is recognized, but this exact '
+                    'device/build is not configured on the backend.',
+                    False,
+                )
+            else:
+                self._set_state(
+                    exploit_cls.unavailable.format(product=product, version=version),
+                    False,
+                )
             return
 
         self.version = version_tuple
